@@ -1,55 +1,55 @@
 const StrategyRecomendacion = require('./StrategyRecomendacion');
 
 class EstrAvanceLento extends StrategyRecomendacion {
-
   recomendar(estudiante, materias, aprobadas, disponibilidad) {
-    const aprobadasSet     = new Set(aprobadas);
-    const horasDisponibles = this._disponibilidadTotal(disponibilidad);
-    // Liviano: máximo 60% de disponibilidad y máximo 2 materias
-    const limiteHoras  = horasDisponibles * 0.60;
-    const limiteMateri = 2;
+    const objetivo = estudiante.objetivo === 'ORDENAR_HABITOS' ? 'ORDENAR_HABITOS' : 'EVITAR_SOBRECARGA';
+    const aprobadasSet = new Set(aprobadas);
+    const limiteEstudio = this._limiteEstudioDisponible(disponibilidad, estudiante, 0.70);
+    const maxMaterias = this._maxMateriasPara(objetivo, estudiante, 2);
+    const maxAltas = this._maxAltasPara(objetivo, estudiante, 1);
 
-    const pendientes     = materias.filter(m => !aprobadasSet.has(m.id));
-    const recomendadas   = [];
+    const pendientes = materias.filter(m => !aprobadasSet.has(m.id));
+    const recomendadas = [];
     const noRecomendadas = [];
-    let horasAcumuladas  = 0;
+    let horasEstudioAcumuladas = 0;
+    let altasYCriticas = 0;
 
-    // Orden: dificultad baja primero, luego desbloqueantes
     const habilitadas = pendientes
       .filter(m => this._materiaHabilitada(m, aprobadasSet))
       .sort((a, b) => {
-        const ord = { BAJA:1, MEDIA:2, ALTA:3, CRITICA:4 };
-        const difDiff = (ord[a.dificultad]||2) - (ord[b.dificultad]||2);
+        const ord = { BAJA: 1, MEDIA: 2, ALTA: 3, CRITICA: 4 };
+        const difDiff = (ord[a.dificultad] || 2) - (ord[b.dificultad] || 2);
         if (difDiff !== 0) return difDiff;
         return this._contarDesbloqueadas(b, materias, aprobadasSet)
              - this._contarDesbloqueadas(a, materias, aprobadasSet);
       });
 
-    const noHabilitadas = pendientes.filter(m => !this._materiaHabilitada(m, aprobadasSet));
-
     for (const m of habilitadas) {
-      if (recomendadas.length >= limiteMateri) {
-        noRecomendadas.push({ ...m, motivo_rechazo: 'Baja disponibilidad semanal (modo liviano, max 2 materias).' });
+      const hsEstudio = this._calcularHorasEstudio(m);
+      const esAlta = ['ALTA', 'CRITICA'].includes(m.dificultad);
+
+      if (recomendadas.length >= maxMaterias) {
+        noRecomendadas.push({ ...m, motivo_rechazo: `Modo liviano: máximo sugerido de ${maxMaterias} materia(s).` });
         continue;
       }
 
-      const hsEstudio = this._calcularHorasEstudio(m);
-      const hsTotales = m.horas_semanales + hsEstudio;
+      if (esAlta && altasYCriticas >= maxAltas) {
+        noRecomendadas.push({ ...m, motivo_rechazo: 'Modo liviano: se evita acumular materias de alta dificultad.' });
+        continue;
+      }
 
-      if (horasAcumuladas + hsTotales > limiteHoras) {
-        noRecomendadas.push({ ...m, motivo_rechazo: 'Exceso de carga horaria (modo liviano).' });
+      if (horasEstudioAcumuladas + hsEstudio > limiteEstudio) {
+        noRecomendadas.push({ ...m, motivo_rechazo: `Exceso de horas de estudio fuera de cursada. Límite ajustado: ${limiteEstudio.toFixed(1)}hs.` });
         continue;
       }
 
       recomendadas.push({ ...m, horas_estudio: hsEstudio });
-      horasAcumuladas += hsTotales;
+      horasEstudioAcumuladas += hsEstudio;
+      if (esAlta) altasYCriticas++;
     }
 
-    for (const m of noHabilitadas) {
-      noRecomendadas.push({ ...m, motivo_rechazo: 'Correlativa pendiente.' });
-    }
-
-    return { recomendadas, noRecomendadas, horasAcumuladas };
+    noRecomendadas.push(...this._construirNoHabilitadas(pendientes, aprobadasSet));
+    return this._resultado(recomendadas, noRecomendadas);
   }
 }
 

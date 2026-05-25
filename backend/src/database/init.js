@@ -42,6 +42,7 @@ async function initDatabase() {
       carga               REAL DEFAULT 0,
       horas_transporte    REAL DEFAULT 0,
       horas_laborales     REAL DEFAULT 0,
+      situacion_laboral   TEXT DEFAULT NULL,
       objetivo            TEXT DEFAULT 'MANTENER_PROMEDIO',
       preferencia_cursada TEXT DEFAULT 'EQUILIBRADA',
       carrera_id          INTEGER REFERENCES carrera(id)
@@ -94,6 +95,14 @@ async function initDatabase() {
       horas     REAL NOT NULL
     );
   `);
+
+  // Migración liviana para bases existentes creadas antes de incorporar situación_laboral.
+  const estudianteCols = await db.all(`PRAGMA table_info(estudiante)`);
+  const hasSituacionLaboral = estudianteCols.some(col => col.name === 'situacion_laboral');
+  if (!hasSituacionLaboral) {
+    await db.exec(`ALTER TABLE estudiante ADD COLUMN situacion_laboral TEXT DEFAULT NULL`);
+  }
+
   console.log('[DB] Schema creado correctamente');
 }
 
