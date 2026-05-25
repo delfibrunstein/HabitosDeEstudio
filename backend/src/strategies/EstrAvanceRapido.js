@@ -1,59 +1,56 @@
 const StrategyRecomendacion = require('./StrategyRecomendacion');
 
 class EstrAvanceRapido extends StrategyRecomendacion {
-
   recomendar(estudiante, materias, aprobadas, disponibilidad) {
-    const aprobadasSet    = new Set(aprobadas);
-    const horasDisponibles = this._disponibilidadTotal(disponibilidad);
+    const objetivo = 'AVANZAR_RAPIDO';
+    const aprobadasSet = new Set(aprobadas);
+    const limiteEstudio = this._limiteEstudioDisponible(disponibilidad, estudiante, 1.00);
+    const maxMaterias = this._maxMateriasPara(objetivo, estudiante, 5);
+    const maxAltas = this._maxAltasPara(objetivo, estudiante, 2);
 
-    // Materias que el estudiante aún no cursó
     const pendientes = materias.filter(m => !aprobadasSet.has(m.id));
-
-    const recomendadas   = [];
+    const recomendadas = [];
     const noRecomendadas = [];
-    let horasAcumuladas  = 0;
-    let altasYCriticas   = 0;
+    let horasEstudioAcumuladas = 0;
+    let altasYCriticas = 0;
 
-    // Orden: desbloqueantes primero, luego dificultad descendente
     const habilitadas = pendientes
       .filter(m => this._materiaHabilitada(m, aprobadasSet))
       .sort((a, b) => {
         const dA = this._contarDesbloqueadas(a, materias, aprobadasSet);
         const dB = this._contarDesbloqueadas(b, materias, aprobadasSet);
         if (dB !== dA) return dB - dA;
-        const ord = { CRITICA:4, ALTA:3, MEDIA:2, BAJA:1 };
+        const ord = { CRITICA: 4, ALTA: 3, MEDIA: 2, BAJA: 1 };
         return (ord[b.dificultad] || 0) - (ord[a.dificultad] || 0);
       });
 
-    const noHabilitadas = pendientes.filter(m => !this._materiaHabilitada(m, aprobadasSet));
-
     for (const m of habilitadas) {
       const hsEstudio = this._calcularHorasEstudio(m);
-      const hsTotales = m.horas_semanales + hsEstudio;
-      const esAlta    = ['ALTA','CRITICA'].includes(m.dificultad);
+      const esAlta = ['ALTA', 'CRITICA'].includes(m.dificultad);
 
-      // Regla: máximo 2 materias de dificultad alta/crítica
-      if (esAlta && altasYCriticas >= 2) {
-        noRecomendadas.push({ ...m, motivo_rechazo: 'Dificultad acumulada muy alta (max 2 por cuatrimestre).' });
+      if (recomendadas.length >= maxMaterias) {
+        noRecomendadas.push({ ...m, motivo_rechazo: `Límite sugerido de materias para este perfil (${maxMaterias}).` });
         continue;
       }
 
-      // Regla: no superar disponibilidad
-      if (horasAcumuladas + hsTotales > horasDisponibles) {
-        noRecomendadas.push({ ...m, motivo_rechazo: 'Exceso de carga horaria semanal.' });
+      if (esAlta && altasYCriticas >= maxAltas) {
+        noRecomendadas.push({ ...m, motivo_rechazo: `Dificultad acumulada muy alta (máximo ${maxAltas} materia(s) alta/crítica).` });
+        continue;
+      }
+
+      // La disponibilidad se compara contra estudio autónomo, no contra cursada + estudio.
+      if (horasEstudioAcumuladas + hsEstudio > limiteEstudio) {
+        noRecomendadas.push({ ...m, motivo_rechazo: `Exceso de horas de estudio fuera de cursada. Límite ajustado: ${limiteEstudio.toFixed(1)}hs.` });
         continue;
       }
 
       recomendadas.push({ ...m, horas_estudio: hsEstudio });
-      horasAcumuladas += hsTotales;
+      horasEstudioAcumuladas += hsEstudio;
       if (esAlta) altasYCriticas++;
     }
 
-    for (const m of noHabilitadas) {
-      noRecomendadas.push({ ...m, motivo_rechazo: 'Correlativa pendiente.' });
-    }
-
-    return { recomendadas, noRecomendadas, horasAcumuladas };
+    noRecomendadas.push(...this._construirNoHabilitadas(pendientes, aprobadasSet));
+    return this._resultado(recomendadas, noRecomendadas);
   }
 }
 

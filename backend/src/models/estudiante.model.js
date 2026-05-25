@@ -18,13 +18,13 @@ const EstudianteModel = {
   async create(data) {
     const db = await getDb();
     const { nombre,dni,email,edad,nacimiento,trabaja,legajo,
-            horasLaborales,horasTransporte,objetivo,preferenciaCursada,carreraId } = data;
+            horasLaborales,horasTransporte,situacionLaboral,objetivo,preferenciaCursada,carreraId } = data;
     return db.run(
       `INSERT INTO estudiante
-        (nombre,dni,email,edad,nacimiento,trabaja,legajo,horas_laborales,horas_transporte,objetivo,preferencia_cursada,carrera_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        (nombre,dni,email,edad,nacimiento,trabaja,legajo,horas_laborales,horas_transporte,situacion_laboral,objetivo,preferencia_cursada,carrera_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [nombre,dni,email,edad,nacimiento,trabaja?1:0,legajo,
-       horasLaborales||0,horasTransporte||0,
+       horasLaborales||0,horasTransporte||0,situacionLaboral||null,
        objetivo||'MANTENER_PROMEDIO',preferenciaCursada||'EQUILIBRADA',carreraId]
     );
   },
@@ -34,7 +34,7 @@ const EstudianteModel = {
     const allowed = {
       nombre:'nombre',dni:'dni',email:'email',edad:'edad',nacimiento:'nacimiento',
       trabaja:'trabaja',legajo:'legajo',horasLaborales:'horas_laborales',
-      horasTransporte:'horas_transporte',objetivo:'objetivo',
+      horasTransporte:'horas_transporte',situacionLaboral:'situacion_laboral',objetivo:'objetivo',
       preferenciaCursada:'preferencia_cursada',carreraId:'carrera_id'
     };
     const fields = [], values = [];
