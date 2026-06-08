@@ -17,31 +17,48 @@ const EstudianteModel = {
 
   async create(data) {
     const db = await getDb();
-    const { nombre,dni,email,edad,nacimiento,trabaja,legajo,
-            horasLaborales,horasTransporte,situacionLaboral,objetivo,preferenciaCursada,carreraId } = data;
+    const {
+      nombre, dni, email, edad, nacimiento, trabaja, legajo,
+      horasLaborales, horasTransporte, situacionLaboral, objetivo,
+      preferenciaCursada, carreraId,
+      regularizadasHabilitan  // nuevo campo
+    } = data;
     return db.run(
       `INSERT INTO estudiante
-        (nombre,dni,email,edad,nacimiento,trabaja,legajo,horas_laborales,horas_transporte,situacion_laboral,objetivo,preferencia_cursada,carrera_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [nombre,dni,email,edad,nacimiento,trabaja?1:0,legajo,
-       horasLaborales||0,horasTransporte||0,situacionLaboral||null,
-       objetivo||'MANTENER_PROMEDIO',preferenciaCursada||'EQUILIBRADA',carreraId]
+        (nombre,dni,email,edad,nacimiento,trabaja,legajo,horas_laborales,horas_transporte,
+         situacion_laboral,objetivo,preferencia_cursada,carrera_id,regularizadas_habilitan)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        nombre, dni, email, edad, nacimiento, trabaja ? 1 : 0, legajo,
+        horasLaborales || 0, horasTransporte || 0,
+        situacionLaboral || null,
+        objetivo || 'MANTENER_PROMEDIO',
+        preferenciaCursada || 'EQUILIBRADA',
+        carreraId,
+        regularizadasHabilitan ? 1 : 0
+      ]
     );
   },
 
   async update(id, data) {
     const db = await getDb();
     const allowed = {
-      nombre:'nombre',dni:'dni',email:'email',edad:'edad',nacimiento:'nacimiento',
-      trabaja:'trabaja',legajo:'legajo',horasLaborales:'horas_laborales',
-      horasTransporte:'horas_transporte',situacionLaboral:'situacion_laboral',objetivo:'objetivo',
-      preferenciaCursada:'preferencia_cursada',carreraId:'carrera_id'
+      nombre: 'nombre', dni: 'dni', email: 'email', edad: 'edad',
+      nacimiento: 'nacimiento', trabaja: 'trabaja', legajo: 'legajo',
+      horasLaborales: 'horas_laborales', horasTransporte: 'horas_transporte',
+      situacionLaboral: 'situacion_laboral', objetivo: 'objetivo',
+      preferenciaCursada: 'preferencia_cursada', carreraId: 'carrera_id',
+      regularizadasHabilitan: 'regularizadas_habilitan'
     };
     const fields = [], values = [];
-    for (const [key,col] of Object.entries(allowed)) {
+    for (const [key, col] of Object.entries(allowed)) {
       if (data[key] !== undefined) {
         fields.push(`${col} = ?`);
-        values.push(key==='trabaja' ? (data[key]?1:0) : data[key]);
+        values.push(
+          key === 'trabaja' || key === 'regularizadasHabilitan'
+            ? (data[key] ? 1 : 0)
+            : data[key]
+        );
       }
     }
     if (!fields.length) return null;
@@ -72,10 +89,14 @@ const EstudianteModel = {
   async getMateriasConEstado(estudianteId) {
     const db = await getDb();
     return db.all(`
-      SELECT m.*, ma.estado, ma.nota, ma.cuatrimestre_aprobado
+      SELECT m.*,
+        ma.estado, ma.nota, ma.cuatrimestre_aprobado,
+        GROUP_CONCAT(c.correlativa_id) AS correlativas_ids
       FROM materia m
-      LEFT JOIN materia_aprobada ma ON ma.materia_id=m.id AND ma.estudiante_id=?
-      WHERE m.carrera_id=(SELECT carrera_id FROM estudiante WHERE id=?)
+      LEFT JOIN materia_aprobada ma ON ma.materia_id = m.id AND ma.estudiante_id = ?
+      LEFT JOIN correlatividad c ON c.materia_id = m.id
+      WHERE m.carrera_id = (SELECT carrera_id FROM estudiante WHERE id = ?)
+      GROUP BY m.id
       ORDER BY m.anio, m.cuatrimestre`, [estudianteId, estudianteId]);
   },
 
@@ -85,15 +106,38 @@ const EstudianteModel = {
       `INSERT INTO materia_aprobada (estudiante_id,materia_id,estado,nota,cuatrimestre_aprobado)
        VALUES (?,?,?,?,?)
        ON CONFLICT(estudiante_id,materia_id)
-       DO UPDATE SET estado=excluded.estado,nota=excluded.nota,cuatrimestre_aprobado=excluded.cuatrimestre_aprobado`,
-      [estudianteId, materiaId, estado, nota||null, cuatrimestreAprobado||null]
+       DO UPDATE SET estado=excluded.estado,nota=excluded.nota,
+                     cuatrimestre_aprobado=excluded.cuatrimestre_aprobado`,
+      [estudianteId, materiaId, estado, nota || null, cuatrimestreAprobado || null]
     );
   },
 
+  /**
+   * Devuelve los IDs de materias que habilitan correlativas.
+   * Si el estudiante tiene regularizadas_habilitan=1, incluye REGULARIZADA además de APROBADA.
+   */
   async getMateriasAprobadas(estudianteId) {
     const db = await getDb();
+    const est = await db.get(
+      `SELECT regularizadas_habilitan FROM estudiante WHERE id = ?`, [estudianteId]
+    );
+    const estados = est?.regularizadas_habilitan
+      ? `('APROBADA','REGULARIZADA')`
+      : `('APROBADA')`;
     const rows = await db.all(
-      `SELECT materia_id FROM materia_aprobada WHERE estudiante_id=? AND estado='APROBADA'`,
+      `SELECT materia_id FROM materia_aprobada WHERE estudiante_id = ? AND estado IN ${estados}`,
+      [estudianteId]
+    );
+    return rows.map(r => r.materia_id);
+  },
+
+  /**
+   * Devuelve IDs de materias EN_CURSO para excluirlas de recomendaciones.
+   */
+  async getMateriasEnCurso(estudianteId) {
+    const db = await getDb();
+    const rows = await db.all(
+      `SELECT materia_id FROM materia_aprobada WHERE estudiante_id = ? AND estado = 'EN_CURSO'`,
       [estudianteId]
     );
     return rows.map(r => r.materia_id);
