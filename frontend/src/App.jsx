@@ -1,35 +1,56 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
-import Navbar    from './components/Navbar';
-import Home      from './pages/Home';
-import Perfil    from './pages/Perfil';
-import PlanExcel from './pages/PlanExcel';
-import Materias  from './pages/Materias';
+import { useState, useEffect } from 'react';
+import Navbar         from './components/Navbar';
+import Home           from './pages/Home';
+import Login          from './pages/Login';
+import Perfil         from './pages/Perfil';
+import PlanExcel      from './pages/PlanExcel';
+import Materias       from './pages/Materias';
 import Disponibilidad from './pages/Disponibilidad';
-import Resultado from './pages/Resultado';
+import Resultado      from './pages/Resultado';
+import { getEstudiante } from './services/api';
 
 export default function App() {
-  // Estado global mínimo: id del estudiante activo
   const [estudianteId, setEstudianteId] = useState(
     () => Number(localStorage.getItem('estudianteId')) || null
   );
+
+  // Si el estudiante del localStorage ya no existe en la DB, limpia la sesión
+  useEffect(() => {
+    if (estudianteId) {
+      getEstudiante(estudianteId).catch(() => {
+        localStorage.removeItem('estudianteId');
+        setEstudianteId(null);
+      });
+    }
+  }, []);
 
   const handleLogin = (id) => {
     setEstudianteId(id);
     localStorage.setItem('estudianteId', id);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('estudianteId');
+    setEstudianteId(null);
+  };
+
   return (
     <>
-      <Navbar estudianteId={estudianteId} />
+      <Navbar estudianteId={estudianteId} onLogout={handleLogout} />
       <Routes>
-        <Route path="/"             element={<Home />} />
-        <Route path="/perfil"       element={<Perfil onLogin={handleLogin} estudianteId={estudianteId} />} />
-        <Route path="/plan"         element={estudianteId ? <PlanExcel estudianteId={estudianteId} /> : <Navigate to="/perfil" />} />
-        <Route path="/materias"     element={estudianteId ? <Materias  estudianteId={estudianteId} /> : <Navigate to="/perfil" />} />
-        <Route path="/disponibilidad" element={estudianteId ? <Disponibilidad estudianteId={estudianteId} /> : <Navigate to="/perfil" />} />
-        <Route path="/resultado"    element={estudianteId ? <Resultado estudianteId={estudianteId} /> : <Navigate to="/perfil" />} />
-        <Route path="*"             element={<Navigate to="/" />} />
+        <Route path="/"      element={<Home estudianteId={estudianteId} />} />
+        <Route path="/login" element={
+          estudianteId ? <Navigate to="/plan" /> : <Login onLogin={handleLogin} />
+        } />
+        <Route path="/perfil" element={
+          <Perfil onLogin={handleLogin} estudianteId={estudianteId} />
+        } />
+        <Route path="/plan"          element={estudianteId ? <PlanExcel      estudianteId={estudianteId} /> : <Navigate to="/login" />} />
+        <Route path="/materias"      element={estudianteId ? <Materias       estudianteId={estudianteId} /> : <Navigate to="/login" />} />
+        <Route path="/disponibilidad" element={estudianteId ? <Disponibilidad estudianteId={estudianteId} /> : <Navigate to="/login" />} />
+        <Route path="/resultado"     element={estudianteId ? <Resultado      estudianteId={estudianteId} /> : <Navigate to="/login" />} />
+        <Route path="*"              element={<Navigate to="/" />} />
       </Routes>
     </>
   );

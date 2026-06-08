@@ -5,14 +5,18 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-// ── Carreras ─────────────────────────────────────────────────────────────────
+// ── Carreras ──────────────────────────────────────────────────────────────────
 export const getCarreras = () =>
   api.get('/estudiantes/carreras').then(r => r.data.carreras);
 
 // ── Estudiantes ───────────────────────────────────────────────────────────────
-export const crearEstudiante    = (data)     => api.post('/estudiantes', data).then(r => r.data.estudiante);
+export const crearEstudiante      = (data)     => api.post('/estudiantes', data).then(r => r.data.estudiante);
 export const actualizarEstudiante = (id, data) => api.put(`/estudiantes/${id}`, data).then(r => r.data.estudiante);
-export const getEstudiante      = (id)       => api.get(`/estudiantes/${id}`).then(r => r.data.estudiante);
+export const getEstudiante        = (id)       => api.get(`/estudiantes/${id}`).then(r => r.data.estudiante);
+
+// Login por legajo — busca el estudiante sin contraseña
+export const loginPorLegajo = (legajo) =>
+  api.get(`/estudiantes/login/${legajo}`).then(r => r.data.estudiante);
 
 // ── Disponibilidad ────────────────────────────────────────────────────────────
 export const guardarDisponibilidad = (id, disponibilidad) =>
@@ -21,9 +25,9 @@ export const getDisponibilidad     = (id) =>
   api.get(`/estudiantes/${id}/disponibilidad`).then(r => r.data.disponibilidad);
 
 // ── Materias del estudiante ───────────────────────────────────────────────────
-export const getMateriasPorCarrera = (carreraId) =>
+export const getMateriasPorCarrera     = (carreraId) =>
   api.get(`/materias?carreraId=${carreraId}`).then(r => r.data.materias);
-export const getMateriasEstudiante = (id) =>
+export const getMateriasEstudiante     = (id) =>
   api.get(`/estudiantes/${id}/materias`).then(r => r.data.materias);
 export const guardarMateriasEstudiante = (id, materias) =>
   api.post(`/estudiantes/${id}/materias`, { materias }).then(r => r.data);

@@ -4,6 +4,7 @@ const ctrl = require('../controllers/estudiantes.controller');
 const router = Router();
 
 router.get('/carreras',                     ctrl.listarCarreras);
+router.get('/login/:legajo',                ctrl.loginPorLegajo);  // ← nuevo
 router.post('/',                            ctrl.crear);
 router.get('/:id',                          ctrl.obtener);
 router.put('/:id',                          ctrl.actualizar);
