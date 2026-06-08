@@ -1,7 +1,7 @@
 const PlanModel = require('../models/plan.model');
 
 const OLLAMA_URL   = process.env.OLLAMA_URL   || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'mistral';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1';
 
 const IaService = {
   async explicar(planId) {
