@@ -2,22 +2,24 @@ import { Link, useLocation } from 'react-router-dom';
 
 export default function Navbar({ estudianteId }) {
   const loc = useLocation();
-  const active = (path) => loc.pathname === path ? { fontWeight: 700, color: '#fff' } : {};
+  const getLinkClass = (path) => `navbar-link ${loc.pathname === path ? 'active' : ''}`;
 
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-brand">📚 PlanifIA</Link>
-      {estudianteId && (
-        <div className="navbar-links">
-          <Link to="/plan"          style={active('/plan')}>Plan</Link>
-          <Link to="/materias"      style={active('/materias')}>Materias</Link>
-          <Link to="/disponibilidad" style={active('/disponibilidad')}>Disponibilidad</Link>
-          <Link to="/resultado"     style={active('/resultado')}>Resultado</Link>
-        </div>
-      )}
-      <Link to="/perfil" className="navbar-links" style={{ fontSize: '.8rem', color: 'rgba(255,255,255,.75)' }}>
-        {estudianteId ? `#${estudianteId}` : 'Ingresar'}
-      </Link>
+      <div className="navbar-links-container">
+        {estudianteId && (
+          <>
+            <Link to="/plan"           className={getLinkClass('/plan')}>Plan</Link>
+            <Link to="/materias"       className={getLinkClass('/materias')}>Materias</Link>
+            <Link to="/disponibilidad" className={getLinkClass('/disponibilidad')}>Disponibilidad</Link>
+            <Link to="/resultado"      className={getLinkClass('/resultado')}>Resultado</Link>
+          </>
+        )}
+        <Link to="/perfil" className="navbar-user">
+          {estudianteId ? `#${estudianteId}` : 'Ingresar'}
+        </Link>
+      </div>
     </nav>
   );
 }
