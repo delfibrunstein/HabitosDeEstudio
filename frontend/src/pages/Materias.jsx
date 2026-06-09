@@ -157,7 +157,7 @@ export default function Materias({ estudianteId }) {
                 {/* Nota (solo si aprobada) */}
                 <div style={{ width: '78px', flexShrink: 0, visibility: estadoActual === 'APROBADA' ? 'visible' : 'hidden' }}>
                   <input
-                    type="number" min="1" max="10" placeholder="Nota"
+                    type="number" min="4" max="10" placeholder="Nota"
                     value={notas[m.id] || ''}
                     onChange={e => setNotas(prev => ({ ...prev, [m.id]: e.target.value }))}
                   />
