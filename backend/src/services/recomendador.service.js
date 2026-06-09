@@ -115,31 +115,34 @@ const RecomendadorService = {
       }
     }
 
-    // Distribuir estudio autónomo en los días disponibles
+    // Distribuir estudio autónomo en los días disponibles.
+    // Se ordenan los días de MAYOR a MENOR disponibilidad para que
+    // sábado y domingo (más libres) absorban la mayor carga de estudio,
+    // y los días de semana solo reciban lo estrictamente necesario.
     const pendientes = materiasRec
       .map(m => ({ nombre: m.nombre, restante: Number(m.horas_estudio || 0) }))
       .filter(m => m.restante > 0);
 
-    let diaIndex = 0;
     for (const materia of pendientes) {
       while (materia.restante > 0) {
-        const dia = dias[diaIndex % dias.length];
-        const capacidad = Math.max(0, dia.disponible - dia.usado);
+        // Buscar siempre el dia con MAS capacidad libre (greedy por espacio disponible).
+        // Asi el sabado/domingo u otros dias libres absorben mas carga,
+        // y los dias de semana reciben solo lo necesario.
+        const dia = dias
+          .filter(d => d.disponible - d.usado > 0)
+          .sort((a, b) => (b.disponible - b.usado) - (a.disponible - a.usado))[0];
 
-        if (capacidad > 0) {
-          const horas = Math.min(materia.restante, capacidad, 2);
-          bloques.push({
-            dia: dia.dia,
-            actividad: `Estudio: ${materia.nombre}`,
-            horas: Math.round(horas * 10) / 10
-          });
-          dia.usado    += horas;
-          materia.restante = Math.round((materia.restante - horas) * 10) / 10;
-        }
+        if (!dia) break;
 
-        diaIndex++;
-        const capacidadRestante = dias.reduce((s, d) => s + Math.max(0, d.disponible - d.usado), 0);
-        if (capacidadRestante <= 0 && materia.restante > 0) break;
+        const capacidad = dia.disponible - dia.usado;
+        const horas = Math.min(materia.restante, capacidad, 2);
+        bloques.push({
+          dia: dia.dia,
+          actividad: `Estudio: ${materia.nombre}`,
+          horas: Math.round(horas * 10) / 10
+        });
+        dia.usado += horas;
+        materia.restante = Math.round((materia.restante - horas) * 10) / 10;
       }
     }
 
