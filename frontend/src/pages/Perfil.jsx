@@ -17,10 +17,10 @@ const PREFERENCIAS = [
 
 // Bug #1 fix: opciones de situación laboral correctamente mapeadas al backend
 const SITUACIONES_LABORALES = [
-  { value: 'NO_TRABAJA',                   label: 'No trabajo' },
-  { value: 'PASANTE_4HS',                  label: 'Pasante / part-time (hasta 20hs)' },
-  { value: 'FREELANCE_VARIABLE',           label: 'Freelance o carga variable (20-30hs)' },
-  { value: 'RELACION_DEPENDENCIA_FULLTIME',label: 'Relación de dependencia full-time (35hs+)' },
+  { value: 'NO_TRABAJA',                    label: 'No trabajo' },
+  { value: 'PASANTE_4HS',                   label: 'Pasante / part-time (hasta 20hs)' },
+  { value: 'FREELANCE_VARIABLE',            label: 'Freelance o carga variable (20-30hs)' },
+  { value: 'RELACION_DEPENDENCIA_FULLTIME', label: 'Relación de dependencia full-time (35hs+)' },
 ];
 
 const INITIAL = {
@@ -93,12 +93,13 @@ export default function Perfil({ onLogin, estudianteId }) {
   return (
     <div className="page">
       <h1>{estudianteId ? 'Editar perfil' : 'Crear perfil'}</h1>
-      <p>Completá tus datos para comenzar la planificación.</p>
+      <p>Completá tus datos para comenzar la planificación personalizada.</p>
 
       {error && <div className="alert alert-error">{error}</div>}
 
       <div className="card">
         <form onSubmit={handleSubmit}>
+          <p className="section-label">Datos personales</p>
 
           <div className="form-row">
             <div className="form-group">
@@ -132,6 +133,8 @@ export default function Perfil({ onLogin, estudianteId }) {
             </select>
           </div>
 
+          <p className="section-label">Situación laboral</p>
+
           {/* Bug #1 fix: selector de situación laboral en lugar de solo checkbox */}
           <div className="form-row">
             <div className="form-group">
@@ -151,6 +154,8 @@ export default function Perfil({ onLogin, estudianteId }) {
             )}
           </div>
 
+          <p className="section-label">Preferencias académicas</p>
+
           <div className="form-row">
             <div className="form-group">
               <label>Objetivo académico</label>
@@ -168,25 +173,22 @@ export default function Perfil({ onLogin, estudianteId }) {
 
           {/* Bug #2 fix: opción para que el estudiante indique la política de su carrera */}
           <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '.5rem', cursor: 'pointer' }}>
+            <label className="checkbox-label">
               <input
                 type="checkbox"
                 checked={form.regularizadasHabilitan}
                 onChange={e => set('regularizadasHabilitan', e.target.checked)}
               />
-              Las materias regularizadas habilitan correlativas en mi carrera
+              <span>Las materias regularizadas habilitan correlativas en mi carrera</span>
             </label>
-            <small className="text-muted">
-              Activá esto si tu facultad permite cursar materias superiores con la regularidad previa.
-            </small>
+            <small>Activá esto si tu facultad permite cursar materias superiores con la regularidad previa.</small>
           </div>
 
-          <div className="flex gap-1 mt-2">
+          <div className="flex gap-2 mt-2">
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? <><span className="spinner" /> Guardando...</> : 'Guardar y continuar →'}
             </button>
           </div>
-
         </form>
       </div>
     </div>

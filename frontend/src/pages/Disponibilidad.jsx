@@ -44,7 +44,13 @@ export default function Disponibilidad({ estudianteId }) {
     } finally { setGuardando(false); }
   };
 
-  if (loading) return <div className="page"><p>Cargando...</p></div>;
+  if (loading) return (
+    <div className="page">
+      <div className="skeleton" style={{ height: '32px', width: '240px', marginBottom: '8px' }} />
+      <div className="skeleton" style={{ height: '18px', width: '400px', marginBottom: '28px' }} />
+      <div className="card skeleton" style={{ height: '320px', border: 'none' }} />
+    </div>
+  );
 
   return (
     <div className="page">
@@ -56,37 +62,23 @@ export default function Disponibilidad({ estudianteId }) {
 
       <div className="card">
         {DIAS.map(dia => (
-          <div key={dia} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '.6rem 0', borderBottom: '1px solid #f3f4f6'
-          }}>
-            <label style={{ fontWeight: 500, minWidth: '100px' }}>{LABEL[dia]}</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, justifyContent: 'flex-end' }}>
-              <input
-                type="range" min="0" max="12" step=".5"
-                value={horas[dia]}
-                onChange={e => setHoras(prev => ({ ...prev, [dia]: e.target.value }))}
-                style={{ width: '160px', accentColor: '#2563eb' }}
-              />
-              <span style={{
-                minWidth: '50px', textAlign: 'right',
-                fontWeight: 600, color: Number(horas[dia]) === 0 ? '#9ca3af' : '#2563eb'
-              }}>
-                {Number(horas[dia]).toFixed(1)}hs
-              </span>
-            </div>
+          <div key={dia} className="avail-row">
+            <span className="avail-label">{LABEL[dia]}</span>
+            <input
+              type="range" min="0" max="12" step=".5"
+              value={horas[dia]}
+              onChange={e => setHoras(prev => ({ ...prev, [dia]: e.target.value }))}
+              style={{ flex: 1 }}
+            />
+            <span className={`avail-value ${Number(horas[dia]) === 0 ? 'zero' : ''}`}>
+              {Number(horas[dia]).toFixed(1)}hs
+            </span>
           </div>
         ))}
 
-        <div style={{
-          marginTop: '1rem', padding: '.75rem 1rem',
-          background: '#eff6ff', borderRadius: '8px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-        }}>
+        <div className="total-box">
           <strong>Total semanal disponible</strong>
-          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#2563eb' }}>
-            {total.toFixed(1)} horas
-          </span>
+          <span className="total-num">{total.toFixed(1)} hs</span>
         </div>
       </div>
 

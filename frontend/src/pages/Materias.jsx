@@ -52,7 +52,6 @@ export default function Materias({ estudianteId }) {
 
   // Bug #11 fix: construir mapa de nombre por id para mostrar correlativas
   const materiasMap = Object.fromEntries(materias.map(m => [m.id, m]));
-
   const getNombreCorrelativa = (id) => materiasMap[id]?.nombre || `ID ${id}`;
 
   // Determinar si una materia está habilitada (todas sus correlativas aprobadas o regularizadas)
@@ -82,7 +81,15 @@ export default function Materias({ estudianteId }) {
     return acc;
   }, {});
 
-  if (loading) return <div className="page"><p>Cargando materias...</p></div>;
+  if (loading) return (
+    <div className="page">
+      <div className="skeleton" style={{ height: '32px', width: '280px', marginBottom: '8px' }} />
+      <div className="skeleton" style={{ height: '18px', width: '460px', marginBottom: '28px' }} />
+      {[1,2,3].map(i => (
+        <div key={i} className="skeleton" style={{ height: '180px', borderRadius: '14px', marginBottom: '16px' }} />
+      ))}
+    </div>
+  );
 
   return (
     <div className="page">
@@ -101,74 +108,59 @@ export default function Materias({ estudianteId }) {
             const estadoActual    = estados[m.id] || '';
 
             return (
-              <div key={m.id} style={{
-                padding: '.6rem 0',
-                borderBottom: '1px solid #f3f4f6',
-                opacity: !habilitada && estadoActual === '' ? 0.6 : 1
-              }}>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto auto',
-                  gap: '.75rem', alignItems: 'start'
-                }}>
-                  {/* Info de la materia */}
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
-                      <strong style={{ fontSize: '.9rem' }}>{m.nombre}</strong>
-                      {!habilitada && estadoActual === '' && (
-                        <span className="badge badge-gris" style={{ fontSize: '.7rem' }}>
-                          🔒 bloqueada
-                        </span>
-                      )}
-                      {estadoActual === 'EN_CURSO' && (
-                        <span className="badge badge-azul" style={{ fontSize: '.7rem' }}>
-                          cursando
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-muted" style={{ fontSize: '.75rem' }}>
-                      {m.codigo} · {m.horas_semanales}hs/sem · {m.dificultad}
-                      {m.promocionable ? ' · promocionable' : ''}
-                    </div>
-
-                    {/* Bug #11 fix: mostrar correlativas con su estado */}
-                    {correlativasIds.length > 0 && (
-                      <div style={{ marginTop: '.3rem', display: 'flex', gap: '.3rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '.72rem', color: '#6b7280' }}>Requiere:</span>
-                        {correlativasIds.map(cId => {
-                          const eCorr = estados[cId];
-                          const aprobada = eCorr === 'APROBADA' || eCorr === 'REGULARIZADA';
-                          return (
-                            <span key={cId} className={`badge ${aprobada ? 'badge-verde' : 'badge-rojo'}`}
-                              style={{ fontSize: '.7rem' }}>
-                              {aprobada ? '✓' : '✗'} {getNombreCorrelativa(cId)}
-                            </span>
-                          );
-                        })}
-                      </div>
+              <div
+                key={m.id}
+                className={`materia-row ${!habilitada && estadoActual === '' ? 'bloqueada' : ''}`}
+              >
+                {/* Info de la materia */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                    <strong style={{ fontSize: '14.5px', fontWeight: 560 }}>{m.nombre}</strong>
+                    {!habilitada && estadoActual === '' && (
+                      <span className="badge badge-gris">🔒 bloqueada</span>
+                    )}
+                    {estadoActual === 'EN_CURSO' && (
+                      <span className="badge badge-azul">cursando</span>
                     )}
                   </div>
+                  <div className="text-faint" style={{ marginBottom: correlativasIds.length ? '6px' : 0 }}>
+                    {m.codigo} · {m.horas_semanales}hs/sem · {m.dificultad}
+                    {m.promocionable ? ' · promocionable' : ''}
+                  </div>
 
-                  {/* Selector de estado */}
-                  <select
-                    value={estadoActual}
-                    onChange={e => setEstados(prev => ({ ...prev, [m.id]: e.target.value }))}
-                    style={{ fontSize: '.8rem', padding: '.3rem .5rem' }}
-                  >
-                    {ESTADOS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-
-                  {/* Nota (solo si aprobada) */}
-                  {estadoActual === 'APROBADA' ? (
-                    <input
-                      type="number" min="1" max="10" placeholder="Nota"
-                      value={notas[m.id] || ''}
-                      onChange={e => setNotas(prev => ({ ...prev, [m.id]: e.target.value }))}
-                      style={{ width: '70px', fontSize: '.8rem', padding: '.3rem .5rem' }}
-                    />
-                  ) : (
-                    <div style={{ width: '70px' }} />
+                  {/* Bug #11 fix: mostrar correlativas con su estado */}
+                  {correlativasIds.length > 0 && (
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11.5px', color: 'var(--text-faint)' }}>Requiere:</span>
+                      {correlativasIds.map(cId => {
+                        const eCorr    = estados[cId];
+                        const aprobada = eCorr === 'APROBADA' || eCorr === 'REGULARIZADA';
+                        return (
+                          <span key={cId} className={`badge ${aprobada ? 'badge-verde' : 'badge-rojo'}`}>
+                            {aprobada ? '✓' : '✗'} {getNombreCorrelativa(cId)}
+                          </span>
+                        );
+                      })}
+                    </div>
                   )}
+                </div>
+
+                {/* Selector de estado */}
+                <select
+                  value={estadoActual}
+                  onChange={e => setEstados(prev => ({ ...prev, [m.id]: e.target.value }))}
+                  style={{ width: '165px', flexShrink: 0 }}
+                >
+                  {ESTADOS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+
+                {/* Nota (solo si aprobada) */}
+                <div style={{ width: '78px', flexShrink: 0, visibility: estadoActual === 'APROBADA' ? 'visible' : 'hidden' }}>
+                  <input
+                    type="number" min="1" max="10" placeholder="Nota"
+                    value={notas[m.id] || ''}
+                    onChange={e => setNotas(prev => ({ ...prev, [m.id]: e.target.value }))}
+                  />
                 </div>
               </div>
             );

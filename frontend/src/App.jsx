@@ -15,6 +15,17 @@ export default function App() {
     () => Number(localStorage.getItem('estudianteId')) || null
   );
 
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
   // Si el estudiante del localStorage ya no existe en la DB, limpia la sesión
   useEffect(() => {
     if (estudianteId) {
@@ -37,7 +48,7 @@ export default function App() {
 
   return (
     <>
-      <Navbar estudianteId={estudianteId} onLogout={handleLogout} />
+      <Navbar estudianteId={estudianteId} theme={theme} setTheme={setTheme} onLogout={handleLogout} />
       <Routes>
         <Route path="/"      element={<Home estudianteId={estudianteId} />} />
         <Route path="/login" element={

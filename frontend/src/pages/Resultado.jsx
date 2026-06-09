@@ -52,9 +52,9 @@ export default function Resultado({ estudianteId }) {
   const bloquesCursada = plan?.bloques?.filter(b => b.actividad?.startsWith('Cursada:')) || [];
   const bloquesEstudio = plan?.bloques?.filter(b => b.actividad?.startsWith('Estudio:'))  || [];
 
-  const totalHorasCursada  = recomendadas.reduce((s, m) => s + Number(m.horas_cursada  || 0), 0);
-  const totalHorasEstudio  = recomendadas.reduce((s, m) => s + Number(m.horas_estudio  || 0), 0);
-  const totalHoras         = totalHorasCursada + totalHorasEstudio;
+  const totalHorasCursada = recomendadas.reduce((s, m) => s + Number(m.horas_cursada  || 0), 0);
+  const totalHorasEstudio = recomendadas.reduce((s, m) => s + Number(m.horas_estudio  || 0), 0);
+  const totalHoras        = totalHorasCursada + totalHorasEstudio;
 
   // Bug #4 + #9 fix: usar estrategia_detalle si existe, sino estrategia (ya es legible)
   const etiquetaEstrategia = plan?.estrategia_detalle || plan?.estrategia || '—';
@@ -66,7 +66,7 @@ export default function Resultado({ estudianteId }) {
 
       {/* Bug #10 fix: aviso de pasos incompletos */}
       {!plan && !loading && !error && (
-        <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
+        <div className="alert alert-info">
           Asegurate de haber completado: <strong>Perfil → Plan de estudios → Materias → Disponibilidad</strong> antes de generar.
         </div>
       )}
@@ -75,8 +75,8 @@ export default function Resultado({ estudianteId }) {
         <div className="alert alert-error">
           {error}
           {error.includes('disponibilidad') && (
-            <div style={{ marginTop: '.5rem' }}>
-              <button className="btn btn-outline" style={{ fontSize: '.8rem' }}
+            <div style={{ marginTop: '10px' }}>
+              <button className="btn btn-outline" style={{ fontSize: '13px', height: '34px' }}
                 onClick={() => nav('/disponibilidad')}>
                 Ir a configurar disponibilidad →
               </button>
@@ -93,23 +93,24 @@ export default function Resultado({ estudianteId }) {
         <>
           {/* Resumen */}
           <div className="card mt-3">
-            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <div className="stat-grid">
               {[
-                { label: 'Materias recomendadas', value: recomendadas.length,            color: '#16a34a' },
-                { label: 'Cursada / semana',       value: `${totalHorasCursada.toFixed(1)}hs`, color: '#0369a1' },
-                { label: 'Estudio / semana',        value: `${totalHorasEstudio.toFixed(1)}hs`,  color: '#7c3aed' },
-                { label: 'Carga total / semana',    value: `${totalHoras.toFixed(1)}hs`,          color: '#b45309' },
+                { label: 'Recomendadas',      value: recomendadas.length,                color: 'var(--success)' },
+                { label: 'Cursada / semana',  value: `${totalHorasCursada.toFixed(1)}hs`, color: 'var(--info)' },
+                { label: 'Estudio / semana',  value: `${totalHorasEstudio.toFixed(1)}hs`, color: '#7C3AED' },
+                { label: 'Carga total',       value: `${totalHoras.toFixed(1)}hs`,        color: 'var(--warning)' },
               ].map(({ label, value, color }) => (
-                <div key={label} style={{ flex: 1, minWidth: '110px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color }}>{value}</div>
-                  <div className="text-muted" style={{ fontSize: '.8rem' }}>{label}</div>
+                <div key={label} className="stat-cell">
+                  <div className="stat-value" style={{ color }}>{value}</div>
+                  <div className="stat-label">{label}</div>
                 </div>
               ))}
             </div>
+
             {/* Bug #4 + #9 fix: estrategia legible */}
-            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f3f4f6' }}>
-              <span className="text-muted" style={{ fontSize: '.8rem' }}>Estrategia aplicada: </span>
-              <strong style={{ fontSize: '.9rem', color: '#7c3aed' }}>{etiquetaEstrategia}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
+              <span className="text-faint">Estrategia:</span>
+              <span className="badge badge-azul" style={{ fontSize: '12px' }}>{etiquetaEstrategia}</span>
             </div>
           </div>
 
@@ -126,8 +127,8 @@ export default function Resultado({ estudianteId }) {
                     {recomendadas.map(m => (
                       <tr key={m.materia_id}>
                         <td>
-                          <strong>{m.nombre}</strong>
-                          <br /><span className="text-muted" style={{ fontSize: '.75rem' }}>{m.codigo}</span>
+                          <div style={{ fontWeight: 560, fontSize: '13.5px' }}>{m.nombre}</div>
+                          <div className="text-faint">{m.codigo}</div>
                         </td>
                         <td>
                           <span className={`badge ${DIFICULTAD_BADGE[m.dificultad] || 'badge-gris'}`}>
@@ -136,18 +137,16 @@ export default function Resultado({ estudianteId }) {
                         </td>
                         <td>{Number(m.horas_cursada || 0).toFixed(1)}hs</td>
                         <td>{Number(m.horas_estudio || 0).toFixed(1)}hs</td>
-                        <td>
-                          <strong>
-                            {(Number(m.horas_cursada || 0) + Number(m.horas_estudio || 0)).toFixed(1)}hs
-                          </strong>
+                        <td style={{ fontWeight: 600 }}>
+                          {(Number(m.horas_cursada || 0) + Number(m.horas_estudio || 0)).toFixed(1)}hs
                         </td>
                       </tr>
                     ))}
-                    <tr style={{ background: '#eff6ff' }}>
-                      <td colSpan={2}><strong>Total semanal</strong></td>
-                      <td><strong>{totalHorasCursada.toFixed(1)}hs</strong></td>
-                      <td><strong>{totalHorasEstudio.toFixed(1)}hs</strong></td>
-                      <td><strong style={{ color: '#2563eb' }}>{totalHoras.toFixed(1)}hs</strong></td>
+                    <tr style={{ background: 'var(--primary-light)' }}>
+                      <td colSpan={2} style={{ fontWeight: 600 }}>Total semanal</td>
+                      <td style={{ fontWeight: 600 }}>{totalHorasCursada.toFixed(1)}hs</td>
+                      <td style={{ fontWeight: 600 }}>{totalHorasEstudio.toFixed(1)}hs</td>
+                      <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{totalHoras.toFixed(1)}hs</td>
                     </tr>
                   </tbody>
                 </table>
@@ -165,18 +164,17 @@ export default function Resultado({ estudianteId }) {
           {/* No recomendadas */}
           {noRecomendadas.length > 0 && (
             <div className="card">
-              <h2>❌ Materias no recomendadas</h2>
+              <h2>Materias no recomendadas</h2>
               {noRecomendadas.map(m => (
                 <div key={m.materia_id} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-                  padding: '.5rem 0', borderBottom: '1px solid #f3f4f6', gap: '1rem'
+                  padding: '10px 0', borderBottom: '1px solid var(--border-soft)', gap: '12px'
                 }}>
                   <div>
-                    <strong style={{ fontSize: '.9rem' }}>{m.nombre}</strong>
-                    <div className="text-muted" style={{ fontSize: '.75rem' }}>{m.codigo}</div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 550 }}>{m.nombre}</div>
+                    <div className="text-faint">{m.codigo}</div>
                   </div>
-                  <span className="badge badge-rojo"
-                    style={{ whiteSpace: 'nowrap', fontSize: '.72rem', maxWidth: '240px', textAlign: 'right' }}>
+                  <span className="badge badge-rojo" style={{ flexShrink: 0, maxWidth: '220px', textAlign: 'right', whiteSpace: 'normal', lineHeight: 1.4 }}>
                     {m.motivo_rechazo}
                   </span>
                 </div>
@@ -191,10 +189,8 @@ export default function Resultado({ estudianteId }) {
 
               {bloquesCursada.length > 0 && (
                 <>
-                  <h3 style={{ fontSize: '.95rem', color: '#0369a1', marginBottom: '.5rem' }}>
-                    🏫 Carga de cursada (horarios según la facultad)
-                  </h3>
-                  <div className="table-wrap" style={{ marginBottom: '1.5rem' }}>
+                  <h3 style={{ color: 'var(--info)' }}>Carga de cursada</h3>
+                  <div className="table-wrap" style={{ marginBottom: '20px' }}>
                     <table>
                       <thead><tr><th>Materia</th><th>Hs/semana</th></tr></thead>
                       <tbody>
@@ -212,9 +208,7 @@ export default function Resultado({ estudianteId }) {
 
               {bloquesEstudio.length > 0 && (
                 <>
-                  <h3 style={{ fontSize: '.95rem', color: '#7c3aed', marginBottom: '.5rem' }}>
-                    📚 Estudio autónomo sugerido
-                  </h3>
+                  <h3 style={{ color: '#7C3AED' }}>Estudio autónomo sugerido</h3>
                   <div className="table-wrap">
                     <table>
                       <thead><tr><th>Día</th><th>Actividad</th><th>Horas</th></tr></thead>
@@ -240,7 +234,7 @@ export default function Resultado({ estudianteId }) {
             {!explicacion && (
               <button className="btn btn-outline" onClick={handleExplicar} disabled={loadingIA}>
                 {loadingIA
-                  ? <><span className="spinner" style={{ borderTopColor: '#2563eb', borderColor: '#bfdbfe' }} /> Consultando...</>
+                  ? <><span className="spinner" style={{ borderTopColor: 'var(--primary)', borderColor: 'var(--primary-light)' }} /> Consultando...</>
                   : '💬 Explicame esta recomendación'}
               </button>
             )}
@@ -249,7 +243,7 @@ export default function Resultado({ estudianteId }) {
                 <div className="alert alert-info" style={{ lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
                   {explicacion}
                 </div>
-                <span className="text-muted" style={{ fontSize: '.75rem' }}>
+                <span className="text-faint">
                   Fuente: {fuenteIA === 'ollama' ? '🟢 Ollama (IA local)' : '🔵 Reglas del sistema'}
                 </span>
               </div>
