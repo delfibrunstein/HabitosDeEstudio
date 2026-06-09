@@ -68,7 +68,13 @@ export default function Disponibilidad({ estudianteId }) {
               type="range" min="0" max="12" step=".5"
               value={horas[dia]}
               onChange={e => setHoras(prev => ({ ...prev, [dia]: e.target.value }))}
-              style={{ flex: 1 }}
+              style={{ 
+                flex: 1,
+                background: `linear-gradient(to right, 
+                  var(--primary) ${(horas[dia] / 12) * 100}%, 
+                  var(--border-soft) ${(horas[dia] / 12) * 100}%
+                )`
+              }}
             />
             <span className={`avail-value ${Number(horas[dia]) === 0 ? 'zero' : ''}`}>
               {Number(horas[dia]).toFixed(1)}hs
