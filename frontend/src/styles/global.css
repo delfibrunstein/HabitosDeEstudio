@@ -807,3 +807,63 @@ tbody tr:hover { background: var(--bg-subtle); }
   font-size: 0.85rem;
   color: #64748b;
 }
+
+/* ─── RESPONSIVE ──────────────────────────────────────────── */
+
+/* Pantallas medianas (Tablets) */
+@media (max-width: 768px) {
+  .page { padding: 24px 16px 64px; }
+  .hero { padding: 32px 0 24px; }
+  .feature-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+
+/* Pantallas chicas (Móviles) */
+@media (max-width: 640px) {
+  .page { padding: 20px 14px 60px; }
+  
+  /* Navbar: Permite scroll horizontal si hay muchos links o el nombre es largo */
+  .navbar { 
+    padding: 0 14px; 
+    overflow-x: auto; 
+    scrollbar-width: none; /* Oculta la barra de scroll en Firefox */
+  }
+  .navbar::-webkit-scrollbar { display: none; } /* Oculta la barra en Chrome/Safari */
+  
+  .card { padding: 16px; }
+  .form-row { grid-template-columns: 1fr; gap: 12px; }
+  
+  .materia-row { 
+    grid-template-columns: 1fr; 
+    gap: 10px; 
+    align-items: stretch; /* Estira los inputs para que ocupen todo el ancho */
+  }
+  .materia-row select, .materia-row input { width: 100%; }
+
+  /* Ajustes de tamaño para la zona de carga de archivos en móvil */
+  .upload-dropzone {
+    padding: 1.5rem 1rem;
+  }
+  .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  .upload-text { font-size: 0.95rem; }
+  
+  /* Botones principales ocupan todo el ancho (mejora la zona táctil) */
+  .hero-ctas { flex-direction: column; }
+  .hero-ctas .btn { width: 100%; }
+}
+
+/* Pantallas muy chicas (Móviles angostos) */
+@media (max-width: 480px) {
+  h1 { font-size: 24px; }
+  
+  /* Pasa los stats a una sola columna */
+  .stat-grid { grid-template-columns: 1fr; }
+  
+  /* Apila la caja de totales */
+  .total-box {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .avail-row { flex-wrap: wrap; }
+}
