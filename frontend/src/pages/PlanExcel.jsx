@@ -43,17 +43,45 @@ export default function PlanExcel({ estudianteId }) {
       {error && <div className="alert alert-error">{error}</div>}
       {exito && <div className="alert alert-success">{exito}</div>}
 
-      <div className="card">
+<div className="card">
         <h2>Cargar archivo Excel</h2>
-        <p className="text-muted" style={{ marginBottom: '1rem' }}>
+        <p className="text-muted" style={{ marginBottom: '1.5rem' }}>
           El archivo debe tener las columnas: Codigo, Materia, Anio, Cuatrimestre,
           HorasSemanales, Correlativas, Dificultad, Promocionable.
         </p>
-        <div className="form-group">
-          <input type="file" accept=".xlsx,.xls"
-            onChange={e => setArchivo(e.target.files[0])} />
+
+        {/* --- NUEVO ÁREA DE CARGA --- */}
+        <div className="form-group custom-file-upload">
+          <label 
+            htmlFor="excel-upload" 
+            className={`upload-dropzone ${archivo ? 'has-file' : ''}`}
+          >
+            <span className="upload-icon">
+              {archivo ? '📄' : '📁'}
+            </span>
+            <span className="upload-text">
+              {archivo 
+                ? archivo.name 
+                : 'Hacé clic acá para seleccionar tu archivo Excel'}
+            </span>
+            {!archivo && <span className="upload-hint">Formatos soportados: .xlsx, .xls</span>}
+          </label>
+          
+          <input 
+            id="excel-upload"
+            type="file" 
+            accept=".xlsx,.xls"
+            onChange={e => setArchivo(e.target.files[0])} 
+            className="hidden-input"
+          />
         </div>
-        <button className="btn btn-primary" onClick={handleUpload} disabled={loading || !archivo}>
+
+        <button 
+          className="btn btn-primary" 
+          onClick={handleUpload} 
+          disabled={loading || !archivo}
+          style={{ width: '100%', marginTop: '1rem' }}
+        >
           {loading ? <><span className="spinner" /> Procesando...</> : 'Subir Excel'}
         </button>
       </div>
