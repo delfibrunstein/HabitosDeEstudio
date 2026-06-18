@@ -7,8 +7,6 @@ const StrategyFactory  = require('../patterns/factory');
 // Patron Observer: notifica a los observers cuando se genera un plan
 const { eventBus }     = require('../patterns/observer');
 
-const DIAS = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'];
-
 const RecomendadorService = {
 
   async generar(estudianteId) {
@@ -33,6 +31,7 @@ const RecomendadorService = {
 
     // Patron Factory: crea la estrategia correcta segun el perfil del estudiante
     const estrategia = StrategyFactory.crearEstrategia(estudiante);
+    console.log('[Factory] Estrategia creada:', estrategia.constructor.name);
 
     const resultado = estrategia.recomendar(
       estudiante, materias, aprobadas, disponibilidad, enCurso
@@ -46,7 +45,6 @@ const RecomendadorService = {
     const estrategiaAplicada = estrategia._obtenerEtiquetaEstrategia(
       estudiante.objetivo || 'MANTENER_PROMEDIO', estudiante
     );
-    console.log('[Factory] Estrategia creada:', estrategia.constructor.name);
 
     const planResult = await PlanModel.create({ estudianteId, estrategia: estrategiaAplicada });
     const planId = planResult.lastID;
@@ -69,7 +67,12 @@ const RecomendadorService = {
 
     const explicacion = this._explicarPorReglas(
       estudiante, recomendadas, noRecomendadas, estrategiaAplicada,
-      { horasEstudio: horasAcumuladas, horasCursada, cargaAcademicaTotal, disponibilidadEstudio: disponibilidadTotal }
+      {
+        horasEstudio: horasAcumuladas,
+        horasCursada,
+        cargaAcademicaTotal,
+        disponibilidadEstudio: disponibilidadTotal
+      }
     );
 
     await PlanModel.updateExplicacion(planId, explicacion, horasAcumuladas);
@@ -78,11 +81,11 @@ const RecomendadorService = {
     eventBus.emitir('plan:generado', {
       estudianteId,
       planId,
-      estrategia:          estrategiaAplicada,
-      totalRecomendadas:   recomendadas.length,
+      estrategia:           estrategiaAplicada,
+      totalRecomendadas:    recomendadas.length,
       recomendadas,
       noRecomendadas,
-      horasEstudio:        horasAcumuladas,
+      horasEstudio:         horasAcumuladas,
       horasCursada,
       disponibilidadEstudio: disponibilidadTotal
     });
@@ -107,6 +110,7 @@ const RecomendadorService = {
 
     if (!dias.length || !materiasRec.length) return bloques;
 
+    // Bloque orientativo de cursada por materia
     for (const m of materiasRec) {
       if (Number(m.horas_semanales || 0) > 0) {
         bloques.push({
@@ -117,26 +121,32 @@ const RecomendadorService = {
       }
     }
 
+    // Distribuir estudio autónomo: greedy por espacio disponible
+    // El día con más horas libres absorbe primero (sábado/domingo primero)
     const pendientes = materiasRec
       .map(m => ({ nombre: m.nombre, restante: Number(m.horas_estudio || 0) }))
       .filter(m => m.restante > 0);
 
-    let diaIndex = 0;
     for (const materia of pendientes) {
       while (materia.restante > 0) {
-        const dia = dias[diaIndex % dias.length];
-        const capacidad = Math.max(0, dia.disponible - dia.usado);
-        if (capacidad > 0) {
-          const horas = Math.min(materia.restante, capacidad, 2);
-          bloques.push({ dia: dia.dia, actividad: `Estudio: ${materia.nombre}`, horas: Math.round(horas * 10) / 10 });
-          dia.usado        += horas;
-          materia.restante  = Math.round((materia.restante - horas) * 10) / 10;
-        }
-        diaIndex++;
-        const cap = dias.reduce((s, d) => s + Math.max(0, d.disponible - d.usado), 0);
-        if (cap <= 0 && materia.restante > 0) break;
+        const dia = dias
+          .filter(d => d.disponible - d.usado > 0)
+          .sort((a, b) => (b.disponible - b.usado) - (a.disponible - a.usado))[0];
+
+        if (!dia) break;
+
+        const capacidad = dia.disponible - dia.usado;
+        const horas = Math.min(materia.restante, capacidad, 2);
+        bloques.push({
+          dia: dia.dia,
+          actividad: `Estudio: ${materia.nombre}`,
+          horas: Math.round(horas * 10) / 10
+        });
+        dia.usado += horas;
+        materia.restante = Math.round((materia.restante - horas) * 10) / 10;
       }
     }
+
     return bloques;
   },
 
@@ -151,7 +161,9 @@ const RecomendadorService = {
     const disponibilidadEstudio = Number(totales.disponibilidadEstudio || 0);
 
     const prefLabel = {
-      INTENSIVA: 'en modo intensivo', EQUILIBRADA: 'de forma equilibrada', LIVIANA: 'de forma liviana'
+      INTENSIVA:   'en modo intensivo',
+      EQUILIBRADA: 'de forma equilibrada',
+      LIVIANA:     'de forma liviana'
     }[estudiante.preferencia_cursada] || 'de forma equilibrada';
 
     let txt = recomendadas.length
@@ -162,15 +174,21 @@ const RecomendadorService = {
     txt += `Se usarán ${horasEstudio.toFixed(1)}hs/semana de estudio autónomo ` +
            `sobre ${disponibilidadEstudio.toFixed(1)}hs disponibles. `;
     txt += `A eso se suman ${horasCursada.toFixed(1)}hs/semana de cursada, ` +
-           `dando una carga académica total de ${cargaTotal.toFixed(1)}hs/semana. `;
+           `dando una carga académica total estimada de ${cargaTotal.toFixed(1)}hs/semana. `;
 
     if (noRecomendadas.length) {
       const motivos = [...new Set(noRecomendadas.map(m => m.motivo_rechazo).filter(Boolean))];
       txt += `Materias no incluidas por: ${motivos.join('; ')}. `;
     }
+
     if (estudiante.trabaja) {
-      txt += 'Se aplicó un margen de seguridad por situación laboral.';
+      txt += 'Se aplicó un margen de seguridad por situación laboral sobre las horas libres de estudio.';
     }
+
+    if (estudiante.regularizadas_habilitan) {
+      txt += ' Las materias regularizadas cuentan como habilitantes de correlativas.';
+    }
+
     return txt;
   }
 };
