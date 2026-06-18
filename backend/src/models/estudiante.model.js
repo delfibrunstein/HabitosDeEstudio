@@ -149,7 +149,22 @@ const EstudianteModel = {
       [estudianteId]
     );
     return rows.map(r => r.materia_id);
+  },
+
+  /**
+   * Devuelve absolutamente todas las materias que el estudiante ya aprobó o regularizó,
+   * para evitar que el recomendador sugiera volver a cursarlas.
+   */
+  async getMateriasCursadasYAprobadas(estudianteId) {
+    const db = await getDb();
+    const rows = await db.all(
+      `SELECT materia_id FROM materia_aprobada 
+       WHERE estudiante_id = ? AND estado IN ('APROBADA', 'REGULARIZADA')`,
+      [estudianteId]
+    );
+    return rows.map(r => r.materia_id);
   }
 };
+
 
 module.exports = EstudianteModel;
