@@ -25,16 +25,23 @@ const RecomendadorService = {
 
     const aprobadas = await EstudianteModel.getMateriasAprobadas(estudianteId);
     const enCurso   = await EstudianteModel.getMateriasEnCurso(estudianteId);
-    const materias  = await MateriaModel.findAll(estudiante.carrera_id);
+    const yaCursadas = await EstudianteModel.getMateriasCursadasYAprobadas(estudianteId);
+    const todasLasMaterias = await MateriaModel.findAll(estudiante.carrera_id);
 
-    if (!materias.length) throw new Error('No hay materias cargadas para esta carrera.');
+    if (!todasLasMaterias.length) throw new Error('No hay materias cargadas para esta carrera.');
+
+    // FILTRADO: Dejamos únicamente las materias que no estén cursadas/aprobadas ni se estén cursando ahora
+    const materiasPendientes = todasLasMaterias.filter(m => 
+      !yaCursadas.includes(m.id) && 
+      !enCurso.includes(m.id)
+    );
 
     // Patron Factory: crea la estrategia correcta segun el perfil del estudiante
     const estrategia = StrategyFactory.crearEstrategia(estudiante);
     console.log('[Factory] Estrategia creada:', estrategia.constructor.name);
 
     const resultado = estrategia.recomendar(
-      estudiante, materias, aprobadas, disponibilidad, enCurso
+      estudiante, materiasPendientes, aprobadas, disponibilidad, enCurso
     );
 
     const {

@@ -1,0 +1,32 @@
+# --- Node / Paquetes ---
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# --- Vite y Builds de Frontend ---
+frontend/.vite/
+frontend/dist/
+.eslintcache
+
+# --- Bases de datos locales (Crucial para que no se rompa) ---
+# Ignora el archivo .db principal y sus archivos temporales de escritura (shm y wal)
+backend/src/database/planificador.db
+backend/src/database/planificador.db-shm
+backend/src/database/planificador.db-wal
+
+# Por si usan otras bases de datos SQLite temporales
+*.db
+*.db-journal
+
+# --- Variables de Entorno (Credenciales/Claves) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- Sistema Operativo / IDEs ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
