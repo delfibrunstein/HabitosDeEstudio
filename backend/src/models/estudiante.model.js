@@ -112,6 +112,14 @@ const EstudianteModel = {
     );
   },
 
+  async deleteMateriaEstado(estudianteId, materiaId) {
+    const db = await getDb();
+    return db.run(
+      `DELETE FROM materia_aprobada WHERE estudiante_id = ? AND materia_id = ?`,
+      [estudianteId, materiaId]
+    );
+  },
+
   /**
    * Devuelve los IDs de materias que habilitan correlativas.
    * Si el estudiante tiene regularizadas_habilitan=1, incluye REGULARIZADA además de APROBADA.

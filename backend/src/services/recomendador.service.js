@@ -1,18 +1,11 @@
-const EstudianteModel = require('../models/estudiante.model');
-const MateriaModel    = require('../models/materia.model');
-const PlanModel       = require('../models/plan.model');
-const EstrAvanceRapido   = require('../strategies/EstrAvanceRapido');
-const EstrAvanceModerado = require('../strategies/EstrAvanceModerado');
-const EstrAvanceLento    = require('../strategies/EstrAvanceLento');
+const EstudianteModel  = require('../models/estudiante.model');
+const MateriaModel     = require('../models/materia.model');
+const PlanModel        = require('../models/plan.model');
 
-const ESTRATEGIAS = {
-  AVANZAR_RAPIDO:    () => new EstrAvanceRapido(),
-  MANTENER_PROMEDIO: () => new EstrAvanceModerado(),
-  EVITAR_SOBRECARGA: () => new EstrAvanceLento(),
-  ORDENAR_HABITOS:   () => new EstrAvanceLento()
-};
-
-const DIAS = ['LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO','DOMINGO'];
+// Patron Factory: centraliza la creacion de estrategias
+const StrategyFactory  = require('../patterns/factory');
+// Patron Observer: notifica a los observers cuando se genera un plan
+const { eventBus }     = require('../patterns/observer');
 
 const RecomendadorService = {
 
@@ -23,7 +16,6 @@ const RecomendadorService = {
     const disponibilidad = await EstudianteModel.getDisponibilidad(estudianteId);
     const disponibilidadTotal = this._disponibilidadTotal(disponibilidad);
 
-    // Bug #8: validar disponibilidad mínima antes de intentar generar
     if (disponibilidadTotal === 0) {
       throw new Error(
         'No tenés horas de estudio configuradas. ' +
@@ -31,16 +23,16 @@ const RecomendadorService = {
       );
     }
 
-    const aprobadas  = await EstudianteModel.getMateriasAprobadas(estudianteId);
-    const enCurso    = await EstudianteModel.getMateriasEnCurso(estudianteId);  // Bug #6
-    const materias   = await MateriaModel.findAll(estudiante.carrera_id);
+    const aprobadas = await EstudianteModel.getMateriasAprobadas(estudianteId);
+    const enCurso   = await EstudianteModel.getMateriasEnCurso(estudianteId);
+    const materias  = await MateriaModel.findAll(estudiante.carrera_id);
 
     if (!materias.length) throw new Error('No hay materias cargadas para esta carrera.');
 
-    const objetivo   = estudiante.objetivo || 'MANTENER_PROMEDIO';
-    const estrategia = ESTRATEGIAS[objetivo] ? ESTRATEGIAS[objetivo]() : new EstrAvanceModerado();
+    // Patron Factory: crea la estrategia correcta segun el perfil del estudiante
+    const estrategia = StrategyFactory.crearEstrategia(estudiante);
+    console.log('[Factory] Estrategia creada:', estrategia.constructor.name);
 
-    // Bug #6: pasar enCurso para que las estrategias las excluyan
     const resultado = estrategia.recomendar(
       estudiante, materias, aprobadas, disponibilidad, enCurso
     );
@@ -50,10 +42,12 @@ const RecomendadorService = {
       horasAcumuladas, horasCursada, cargaAcademicaTotal
     } = resultado;
 
-    const estrategiaAplicada = estrategia._obtenerEtiquetaEstrategia(objetivo, estudiante);
+    const estrategiaAplicada = estrategia._obtenerEtiquetaEstrategia(
+      estudiante.objetivo || 'MANTENER_PROMEDIO', estudiante
+    );
 
     const planResult = await PlanModel.create({ estudianteId, estrategia: estrategiaAplicada });
-    const planId     = planResult.lastID;
+    const planId = planResult.lastID;
 
     for (const m of recomendadas) {
       await PlanModel.addMateria({
@@ -68,7 +62,6 @@ const RecomendadorService = {
       });
     }
 
-    // Bug #3: el plan semanal incluye bloques de cursada además del estudio
     const bloques = this._generarPlanSemanal(recomendadas, disponibilidad);
     for (const b of bloques) await PlanModel.addBloque({ planId, ...b });
 
@@ -83,6 +76,19 @@ const RecomendadorService = {
     );
 
     await PlanModel.updateExplicacion(planId, explicacion, horasAcumuladas);
+
+    // Patron Observer: notificar a todos los observers registrados
+    eventBus.emitir('plan:generado', {
+      estudianteId,
+      planId,
+      estrategia:           estrategiaAplicada,
+      totalRecomendadas:    recomendadas.length,
+      recomendadas,
+      noRecomendadas,
+      horasEstudio:         horasAcumuladas,
+      horasCursada,
+      disponibilidadEstudio: disponibilidadTotal
+    });
 
     const planFinal = await PlanModel.findById(planId);
     return {
@@ -104,30 +110,25 @@ const RecomendadorService = {
 
     if (!dias.length || !materiasRec.length) return bloques;
 
-    // Bug #3: primero agregar un bloque orientativo de cursada por materia
+    // Bloque orientativo de cursada por materia
     for (const m of materiasRec) {
       if (Number(m.horas_semanales || 0) > 0) {
         bloques.push({
-          dia: 'LUNES',   // referencial; el horario real lo define la facultad
+          dia: 'LUNES',
           actividad: `Cursada: ${m.nombre} (${m.horas_semanales}hs/sem — según horario de la facultad)`,
           horas: Number(m.horas_semanales)
         });
       }
     }
 
-    // Distribuir estudio autónomo en los días disponibles.
-    // Se ordenan los días de MAYOR a MENOR disponibilidad para que
-    // sábado y domingo (más libres) absorban la mayor carga de estudio,
-    // y los días de semana solo reciban lo estrictamente necesario.
+    // Distribuir estudio autónomo: greedy por espacio disponible
+    // El día con más horas libres absorbe primero (sábado/domingo primero)
     const pendientes = materiasRec
       .map(m => ({ nombre: m.nombre, restante: Number(m.horas_estudio || 0) }))
       .filter(m => m.restante > 0);
 
     for (const materia of pendientes) {
       while (materia.restante > 0) {
-        // Buscar siempre el dia con MAS capacidad libre (greedy por espacio disponible).
-        // Asi el sabado/domingo u otros dias libres absorben mas carga,
-        // y los dias de semana reciben solo lo necesario.
         const dia = dias
           .filter(d => d.disponible - d.usado > 0)
           .sort((a, b) => (b.disponible - b.usado) - (a.disponible - a.usado))[0];
@@ -154,12 +155,11 @@ const RecomendadorService = {
   },
 
   _explicarPorReglas(estudiante, recomendadas, noRecomendadas, etiquetaEstrategia, totales) {
-    const horasEstudio        = Number(totales.horasEstudio || 0);
-    const horasCursada        = Number(totales.horasCursada || 0);
-    const cargaTotal          = Number(totales.cargaAcademicaTotal || 0);
+    const horasEstudio          = Number(totales.horasEstudio || 0);
+    const horasCursada          = Number(totales.horasCursada || 0);
+    const cargaTotal            = Number(totales.cargaAcademicaTotal || 0);
     const disponibilidadEstudio = Number(totales.disponibilidadEstudio || 0);
 
-    // Bug #5: mencionar preferencia de cursada si no es la default
     const prefLabel = {
       INTENSIVA:   'en modo intensivo',
       EQUILIBRADA: 'de forma equilibrada',

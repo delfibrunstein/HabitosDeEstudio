@@ -36,8 +36,9 @@ export default function Materias({ estudianteId }) {
   const handleGuardar = async () => {
     setGuardando(true); setError(''); setExito('');
     try {
+      // Enviar todas las materias con su estado (incluyendo estado vacío '')
+      // para que el backend elimine el registro cuando corresponda.
       const materiasFiltradas = Object.entries(estados)
-        .filter(([, v]) => v !== '')
         .map(([materiaId, estado]) => ({
           materiaId: Number(materiaId),
           estado,

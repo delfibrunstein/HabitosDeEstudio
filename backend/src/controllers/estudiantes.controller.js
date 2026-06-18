@@ -69,7 +69,12 @@ const EstudiantesController = {
       const estudianteId = Number(req.params.id);
       const { materias } = req.body;
       for (const m of materias) {
-        await EstudianteModel.upsertMateriaEstado(estudianteId, m.materiaId, m.estado, m.nota, m.cuatrimestreAprobado);
+        // Si el estado viene vacío ("Sin estado" en UI), eliminamos el registro
+        if (!m.estado || m.estado === '') {
+          await EstudianteModel.deleteMateriaEstado(estudianteId, m.materiaId);
+        } else {
+          await EstudianteModel.upsertMateriaEstado(estudianteId, m.materiaId, m.estado, m.nota, m.cuatrimestreAprobado);
+        }
       }
       res.json({ ok: true, guardadas: materias.length });
     } catch (err) { next(err); }
