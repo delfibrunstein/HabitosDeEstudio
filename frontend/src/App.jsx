@@ -26,11 +26,12 @@ export default function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Si el estudiante del localStorage ya no existe en la DB, limpia la sesión
+  // Valida que el estudiante del storage siga existiendo
   useEffect(() => {
     if (estudianteId) {
       getEstudiante(estudianteId).catch(() => {
         localStorage.removeItem('estudianteId');
+        localStorage.removeItem('authToken');
         setEstudianteId(null);
       });
     }
@@ -39,10 +40,12 @@ export default function App() {
   const handleLogin = (id) => {
     setEstudianteId(id);
     localStorage.setItem('estudianteId', id);
+    // authToken ya lo guarda Login/Perfil antes de llamar a onLogin
   };
 
   const handleLogout = () => {
     localStorage.removeItem('estudianteId');
+    localStorage.removeItem('authToken');
     setEstudianteId(null);
   };
 
@@ -57,11 +60,11 @@ export default function App() {
         <Route path="/perfil" element={
           <Perfil onLogin={handleLogin} estudianteId={estudianteId} />
         } />
-        <Route path="/plan"          element={estudianteId ? <PlanExcel      estudianteId={estudianteId} /> : <Navigate to="/login" />} />
-        <Route path="/materias"      element={estudianteId ? <Materias       estudianteId={estudianteId} /> : <Navigate to="/login" />} />
+        <Route path="/plan"           element={estudianteId ? <PlanExcel      estudianteId={estudianteId} /> : <Navigate to="/login" />} />
+        <Route path="/materias"       element={estudianteId ? <Materias       estudianteId={estudianteId} /> : <Navigate to="/login" />} />
         <Route path="/disponibilidad" element={estudianteId ? <Disponibilidad estudianteId={estudianteId} /> : <Navigate to="/login" />} />
-        <Route path="/resultado"     element={estudianteId ? <Resultado      estudianteId={estudianteId} /> : <Navigate to="/login" />} />
-        <Route path="*"              element={<Navigate to="/" />} />
+        <Route path="/resultado"      element={estudianteId ? <Resultado      estudianteId={estudianteId} /> : <Navigate to="/login" />} />
+        <Route path="*"               element={<Navigate to="/" />} />
       </Routes>
     </>
   );

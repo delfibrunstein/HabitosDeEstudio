@@ -13,6 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
+app.use('/api/auth',           require('./routes/auth.routes'));
 app.use('/api/planes',         require('./routes/planes.routes'));
 app.use('/api/materias',       require('./routes/materias.routes'));
 app.use('/api/estudiantes',    require('./routes/estudiantes.routes'));

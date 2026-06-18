@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { crearEstudiante, actualizarEstudiante, getEstudiante, getCarreras } from '../services/api';
+import {
+  registrarEstudiante, actualizarEstudiante,
+  getEstudiante, getCarreras, cambiarPassword
+} from '../services/api';
 
 const OBJETIVOS = [
   { value: 'AVANZAR_RAPIDO',    label: 'Avanzar rápido' },
@@ -15,7 +18,6 @@ const PREFERENCIAS = [
   { value: 'LIVIANA',     label: 'Liviana' },
 ];
 
-// Bug #1 fix: opciones de situación laboral correctamente mapeadas al backend
 const SITUACIONES_LABORALES = [
   { value: 'NO_TRABAJA',                    label: 'No trabajo' },
   { value: 'PASANTE_4HS',                   label: 'Pasante / part-time (hasta 20hs)' },
@@ -40,6 +42,15 @@ export default function Perfil({ onLogin, estudianteId }) {
   const [carreras, setCarreras] = useState([]);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState('');
+
+  // Sección cambio de contraseña (solo en edición)
+  const [showPass, setShowPass]       = useState(false);
+  const [passActual, setPassActual]   = useState('');
+  const [passNuevo, setPassNuevo]     = useState('');
+  const [passConfirm, setPassConfirm] = useState('');
+  const [passError, setPassError]     = useState('');
+  const [passOk, setPassOk]           = useState('');
 
   useEffect(() => {
     getCarreras().then(setCarreras).catch(() => {});
@@ -64,7 +75,6 @@ export default function Perfil({ onLogin, estudianteId }) {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  // Sincronizar trabaja con situacionLaboral
   const handleSituacion = (val) => {
     set('situacionLaboral', val);
     set('trabaja', val !== 'NO_TRABAJA');
@@ -72,30 +82,54 @@ export default function Perfil({ onLogin, estudianteId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError(''); setSuccess('');
     if (!form.nombre || !form.legajo || !form.carreraId)
       return setError('Nombre, legajo y carrera son requeridos.');
+    if (!estudianteId && !form.email)
+      return setError('El email es requerido para el registro.');
     setLoading(true);
     try {
-      let estudiante;
       if (estudianteId) {
-        estudiante = await actualizarEstudiante(estudianteId, form);
+        await actualizarEstudiante(estudianteId, form);
+        setSuccess('Perfil actualizado correctamente.');
       } else {
-        estudiante = await crearEstudiante(form);
+        // Registro nuevo: usa la nueva ruta auth
+        const { estudiante, token } = await registrarEstudiante(form);
+        localStorage.setItem('authToken', token);
+        onLogin(estudiante.id);
+        nav('/plan');
       }
-      onLogin(estudiante.id);
-      nav('/plan');
     } catch (err) {
       setError(err.response?.data?.error || 'Error al guardar el perfil.');
     } finally { setLoading(false); }
   };
 
+  const handleCambiarPassword = async (e) => {
+    e.preventDefault();
+    setPassError(''); setPassOk('');
+    if (passNuevo !== passConfirm) return setPassError('Las contraseñas nuevas no coinciden.');
+    if (passNuevo.length < 4) return setPassError('La contraseña debe tener al menos 4 caracteres.');
+    try {
+      await cambiarPassword({ passwordActual: passActual, passwordNuevo: passNuevo });
+      setPassOk('Contraseña cambiada correctamente.');
+      setPassActual(''); setPassNuevo(''); setPassConfirm('');
+      setShowPass(false);
+    } catch (err) {
+      setPassError(err.response?.data?.error || 'Error al cambiar la contraseña.');
+    }
+  };
+
   return (
     <div className="page">
       <h1>{estudianteId ? 'Editar perfil' : 'Crear perfil'}</h1>
-      <p>Completá tus datos para comenzar la planificación personalizada.</p>
+      <p>
+        {estudianteId
+          ? 'Actualizá tus datos personales y preferencias académicas.'
+          : 'Completá tus datos para comenzar la planificación personalizada. Tu contraseña inicial será tu legajo en mayúsculas.'}
+      </p>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error   && <div className="alert alert-error">{error}</div>}
+      {success && <div className="alert alert-success">{success}</div>}
 
       <div className="card">
         <form onSubmit={handleSubmit}>
@@ -108,7 +142,13 @@ export default function Perfil({ onLogin, estudianteId }) {
             </div>
             <div className="form-group">
               <label>Legajo *</label>
-              <input value={form.legajo} onChange={e => set('legajo', e.target.value)} placeholder="SIS001" />
+              <input
+                value={form.legajo}
+                onChange={e => set('legajo', e.target.value)}
+                placeholder="SIS001"
+                readOnly={!!estudianteId}
+                style={estudianteId ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
+              />
             </div>
           </div>
 
@@ -118,10 +158,21 @@ export default function Perfil({ onLogin, estudianteId }) {
               <input value={form.dni} onChange={e => set('dni', e.target.value)} placeholder="12345678" />
             </div>
             <div className="form-group">
-              <label>Email</label>
-              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="juan@email.com" />
+              <label>Email {!estudianteId && '*'}</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => set('email', e.target.value)}
+                placeholder="juan@email.com"
+              />
             </div>
           </div>
+
+          {!estudianteId && (
+            <div className="alert" style={{ background: 'var(--bg-alt, #f0f4ff)', border: '1px solid var(--primary, #4f6ef2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px', fontSize: '0.88rem' }}>
+              🔑 Tu contraseña inicial será tu legajo en mayúsculas (ej: <strong>SIS001</strong>). Podés cambiarla desde tu perfil después de ingresar.
+            </div>
+          )}
 
           <div className="form-group">
             <label>Carrera *</label>
@@ -135,7 +186,6 @@ export default function Perfil({ onLogin, estudianteId }) {
 
           <p className="section-label">Situación laboral</p>
 
-          {/* Bug #1 fix: selector de situación laboral en lugar de solo checkbox */}
           <div className="form-row">
             <div className="form-group">
               <label>Situación laboral</label>
@@ -171,7 +221,6 @@ export default function Perfil({ onLogin, estudianteId }) {
             </div>
           </div>
 
-          {/* Bug #2 fix: opción para que el estudiante indique la política de su carrera */}
           <div className="form-group">
             <label className="checkbox-label">
               <input
@@ -186,11 +235,73 @@ export default function Perfil({ onLogin, estudianteId }) {
 
           <div className="flex gap-2 mt-2">
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? <><span className="spinner" /> Guardando...</> : 'Guardar y continuar →'}
+              {loading
+                ? <><span className="spinner" /> Guardando...</>
+                : estudianteId ? 'Guardar cambios' : 'Crear cuenta →'}
             </button>
           </div>
         </form>
       </div>
+
+      {/* ── Cambio de contraseña (solo para estudiantes existentes) ── */}
+      {estudianteId && (
+        <div className="card" style={{ marginTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p className="section-label" style={{ margin: 0 }}>🔒 Cambiar contraseña</p>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+              onClick={() => { setShowPass(v => !v); setPassError(''); setPassOk(''); }}
+            >
+              {showPass ? 'Cancelar' : 'Cambiar'}
+            </button>
+          </div>
+
+          {passError && <div className="alert alert-error" style={{ marginTop: '12px' }}>{passError}</div>}
+          {passOk    && <div className="alert alert-success" style={{ marginTop: '12px' }}>{passOk}</div>}
+
+          {showPass && (
+            <form onSubmit={handleCambiarPassword} style={{ marginTop: '16px' }}>
+              <div className="form-group">
+                <label>Contraseña actual</label>
+                <input
+                  type="password"
+                  value={passActual}
+                  onChange={e => setPassActual(e.target.value)}
+                  placeholder="Tu contraseña actual"
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Nueva contraseña</label>
+                  <input
+                    type="password"
+                    value={passNuevo}
+                    onChange={e => setPassNuevo(e.target.value)}
+                    placeholder="Mínimo 4 caracteres"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Confirmar nueva contraseña</label>
+                  <input
+                    type="password"
+                    value={passConfirm}
+                    onChange={e => setPassConfirm(e.target.value)}
+                    placeholder="Repetí la nueva contraseña"
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary">
+                Actualizar contraseña
+              </button>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }
